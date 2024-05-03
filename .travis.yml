@@ -1,0 +1,97 @@
+---
+os: linux
+dist: bionic
+language: python
+
+python:
+- 3.6
+- 3.7
+- 3.8
+
+install:
+- pip install tox-travis
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    sudo apt-get install libsdl2-2.0-0
+  ; fi
+script:
+- tox
+
+stages:
+- lint
+- test
+- publish
+
+jobs:
+  allow_failures:
+  - { os: osx, stage: publish }
+
+  include:
+  - { stage: lint, python: 3.6, env: TOXENV=flake8 }
+  - { stage: lint, python: 3.6, env: TOXENV=pylint }
+
+  - name: PyPI package
+    stage: publish
+    python: 3.6
+    install: skip
+    script: skip
+    deploy:
+      provider: pypi
+      user: coolRR
+      password:
+        secure: lQ78pXBQXq2hgrgtlgLak15RVzMGpDJP8ncbenJgpdT0EmTc98MRvQeFsNgiwTKLvkyNZzFs1tG2LjdWX5i7DRwxoAXYObzMiexOfTd6tjQt1/KwuZDWpmMqpBmNGRxzpHbX/0gFWlZ6dY5/y5Wh9FSvXfwYzK1dkscgtdOayB3hHR6y/wOodiZa44k49q+dGKGlJnvbaDK6ngescWX+MIwV3LpiWlooB/S6sPbRg991sfuNc+tbO5LVHvlmDy6oECLqZ6uBLHKrSOZMeKULnJKWHFfUBkeb/ajzrP2O3KYD8rvMaeR9a99iQWRcIs97jLNHtcVx1OR79b49A1HnjjuxYdmksSn7sTF0YbugJJbEq0kQLtoNfOY5C+FnSfj8z2CLLAEOKUHgX/JDHoJmwVpnrY1CVLRIR3zR60RchwGO6Y7WqqjQGbpVJN1H+1kY66EXec28kycalbLVprea9YyMkvVNgu4wwiFu5O+2Td3bptqQstSmUZb+fHt334EISFcA3OEn0JEToNPP3ZjmtwJCTNEt+DViZ5gtatsxptGZr5NzJx3BENPyO3jktga1hw9nmY/pjH9Efu8TRdqzGM7WJMgeO6bBlCncwBQHz60r4AOuTFreZ3Cz7DoVDGKBYOk4oOUvbvv1BINAcRhPijSzhh46atakspBKBk0iEn4=
+      distributions: 'sdist bdist_wheel'
+      skip_cleanup: true
+      on:
+        tags: true
+
+  - name: GNU/Linux AppImage
+    stage: publish
+    python: 3.6
+    install:
+    - sudo apt-get install desktop-file-utils
+    - wget https://raw.githubusercontent.com/AppImage/AppImages/master/pkg2appimage
+    - chmod 755 pkg2appimage
+    script:
+    - ./pkg2appimage AppImage.yml
+    - bash -c "mv -v out/Python*AppImage PythonTurtle.AppImage"
+    deploy:
+      provider: releases
+      api_key: $GITHUB_TOKEN
+      file: PythonTurtle.AppImage
+      skip_cleanup: true
+      on:
+        tags: true
+
+  - name: GNU/Linux bundle
+    stage: publish
+    python: 3.6
+    install:
+    - pip install PyInstaller
+    - pip install --find-links https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-18.04 wxPython
+    script:
+    - ./setup.py clean bundle
+    deploy:
+      provider: releases
+      api_key: $GITHUB_TOKEN
+      file: dist/PythonTurtle
+      skip_cleanup: true
+      on:
+        tags: true
+
+  - name: macOS bundle
+    stage: publish
+    os: osx
+    language: generic
+    install:
+    - python3 --version
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install PyInstaller wxPython
+    script:
+    - ./setup.py clean bundle
+    deploy:
+      provider: releases
+      api_key: $GITHUB_TOKEN
+      file: dist/PythonTurtle
+      skip_cleanup: true
+      on:
+        tags: true
